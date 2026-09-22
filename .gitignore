@@ -12,3 +12,4 @@ submission/*.pdf
 .DS_Store
 .pytest_cache/
 weights/
+demo-output/
