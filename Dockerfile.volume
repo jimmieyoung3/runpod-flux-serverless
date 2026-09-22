@@ -4,8 +4,8 @@
 # baked in; the first worker downloads them onto a RunPod network volume mounted
 # at /runpod-volume, and every later worker on that volume starts from local disk.
 #
-# Trade-off vs the primary Dockerfile: a ~9 GB push instead of ~36 GB, at the
-# cost of a one-time ~10 minute first-boot download. Use this when the 36 GB
+# Trade-off vs the primary Dockerfile: a ~9 GB push instead of ~30 GB, at the
+# cost of a one-time ~10 minute first-boot download. Use this when the 30 GB
 # image cannot be built or pushed.
 #
 #   docker build -f Dockerfile.volume -t <user>/flux-runpod:volume .

@@ -310,10 +310,13 @@ def build():
     # row height, so images and captions go in as plain flowables, two per row.
     col = (W - 10 * mm) / 2
 
-    def cell_image(name, width):
+    def cell_image(name, width, max_h=70 * mm):
+        """Fit inside the column, but cap height so a portrait sitting beside a
+        square image does not push its neighbour's caption down the page."""
         from reportlab.lib.utils import ImageReader
         iw, ih = ImageReader(str(ASSETS / name)).getSize()
-        return Image(str(ASSETS / name), width=width, height=width * ih / iw)
+        w = min(width, max_h * iw / ih)
+        return Image(str(ASSETS / name), width=w, height=w * ih / iw)
 
     grid = [
         [cell_image(pairs[0][0], col), cell_image(pairs[1][0], col)],

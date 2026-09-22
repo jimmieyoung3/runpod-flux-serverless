@@ -34,7 +34,7 @@ DOCKER_BUILDKIT=1 docker build \
 echo "==> image size"
 docker images "${IMAGE}" --format '{{.Repository}}:{{.Tag}}  {{.Size}}'
 
-echo "==> pushing (this is the slow part: ~35 GB over your uplink)"
+echo "==> pushing (this is the slow part: ~30 GB over your uplink)"
 docker push "${IMAGE}:${TAG}"
 docker push "${IMAGE}:latest"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the ~36 GB image from inside a RunPod CPU pod and push it, using the
+# Build the ~30 GB image from inside a RunPod CPU pod and push it, using the
 # pod's datacenter uplink instead of a home connection.
 #
 # ---------------------------------------------------------------------------
