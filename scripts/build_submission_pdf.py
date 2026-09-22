@@ -380,6 +380,24 @@ def build():
                "fp8 or NF4 transformer weights roughly halve both load time and VRAM, at some quality cost. "
                "worth measuring against the bf16 baseline recorded here."],
           ], [46 * mm, W - 46 * mm]),
+          KeepTogether([
+            P("8. Knowledge base articles", "h1"),
+            P("Each problem hit during this build was written up as a customer-facing article in "
+              "<font face='Courier'>docs/kb/</font>, in the shape a support article needs: what you see, "
+              "what causes it, the commands that confirm it, and what to do about it. Where a cause is "
+              "inferred rather than proven, the article says so."),
+            table([
+                ["Article", "Issue it resolves"],
+                ["KB-001", "Container build on a Pod fails with <font face='Courier'>unshare(CLONE_NEWUSER): Operation not permitted</font>. "
+                           "Includes the four commands that confirm it and the Kaniko workaround, with its side effects."],
+                ["KB-002", "Serverless workers stay <font face='Courier'>throttled</font> and jobs sit in the queue. "
+                           "How to tell GPU capacity apart from an image too large for hosts to cache."],
+                ["KB-003", "The first request to a new endpoint times out while later ones succeed. "
+                           "Why <font face='Courier'>/run</font> and polling beats <font face='Courier'>/runsync</font> when cold, and how to shorten cold starts."],
+                ["KB-004", "Keeping Hugging Face and registry credentials out of an image, including the case where "
+                           "BuildKit secrets are unavailable, and how to verify the published image rather than assume."],
+            ], [20 * mm, W - 20 * mm])
+          ]),
           Spacer(1, 10),
           P(f'Full source, tests and deployment runbook: <link href="{REPO}">'
             f'<font color="#3f6cd4">{REPO}</font></link>', "small"),

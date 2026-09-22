@@ -34,6 +34,7 @@ client ──── {"input": {prompt}} ─────▶ │ queue ──▶ w
 | `scripts/fetch_weights_local.py` | Downloads weights into the build context, keeping the token out of the image. |
 | `scripts/build_on_pod.sh` | Daemonless build from inside a RunPod CPU pod (Kaniko). |
 | `docs/DEPLOY.md` | Step-by-step RunPod console runbook. |
+| `docs/kb/` | Knowledge base articles written from the failures hit while building this. |
 
 ## API
 
