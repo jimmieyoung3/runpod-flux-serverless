@@ -14,15 +14,40 @@ Everything here is done once. Steps 1–3 can run in parallel with the image bui
 
 ## 1. Build and push the image
 
+**Create the Docker Hub repository first, and make it private.** A push to a
+repository that does not exist creates it as *public*, which for FLUX.1-dev
+would redistribute non-commercially-licensed weights.
+
+### The path used here: build inside a RunPod CPU pod
+
+A home uplink makes the ~30 GB push take hours, so the build runs on a pod
+instead. See the constraints documented in `scripts/build_on_pod.sh` — Buildah
+cannot run in a RunPod pod, and Kaniko destroys the pod it builds in.
+
+```bash
+# on a CPU pod with >= 120 GB free disk (>= 16 vCPU; vcpuCount must be a power of 2)
+export HF_TOKEN=hf_...  IMAGE=docker.io/<user>/flux-runpod  TAG=v1
+export DOCKERHUB_USER=<user>  DOCKERHUB_TOKEN=<access-token>
+git clone <this repo> && cd runpod-flux-serverless
+./scripts/build_on_pod.sh
+```
+
+SSH will drop roughly 60-90 seconds in; that is expected. Watch from your own
+machine instead — the tag appearing in the registry is the completion signal.
+Measured: ~3 min to fetch weights, ~26 min to build and push. Then **terminate
+the pod**, which is unusable afterwards.
+
+### Alternative: build locally
+
+Requires ~120 GB free disk and BuildKit, and the push is bound by your uplink.
+This path is provided for completeness and was not the one used here.
+
 ```bash
 export HF_TOKEN=hf_xxx
 export IMAGE=docker.io/<dockerhub-user>/flux-runpod
 docker login
 ./scripts/build_and_push.sh v1
 ```
-
-Expect ~34 GB of weights on top of a ~7 GB CUDA/PyTorch base. The download is
-bandwidth-bound; the push is bound by your uplink and is the slowest step.
 
 Keep the repository **private**. FLUX.1-dev's licence is non-commercial and does
 not permit redistributing the weights, which is what a public image would do.
@@ -34,6 +59,7 @@ RunPod console → **Serverless** → **New Endpoint** → **Import from Docker 
 | Setting | Value | Why |
 | --- | --- | --- |
 | Container image | `docker.io/<user>/flux-runpod:v1` | Tag explicitly; `latest` makes rollbacks ambiguous. |
+| GPU tiers | select **several**, not one | A single-tier endpoint can sit unschedulable. 11 tiers were selected here; workers landed on A40 and A100. |
 | Registry credentials | your Docker Hub user + access token | Required for a private repo. |
 | GPU | 48 GB (L40S / A6000) or 80 GB (A100 / H100) | bf16 transformer + T5 needs > 40 GB to stay resident. 24 GB works but triggers CPU offload. |
 | Active workers | `0` | Pay only on request. Set `1` only to eliminate cold start. |
@@ -87,3 +113,10 @@ RunPod bills.
 | `No CUDA device visible` | Endpoint scheduled on a CPU worker | Re-check the GPU selection on the endpoint. |
 | Response truncated / 502 on large batches | Base64 payload past RunPod's ~20 MB limit | Use `JPEG`, fewer images, or configure `BUCKET_ENDPOINT_URL`. |
 | Push fails partway | Uplink dropped | `docker push` again; completed layers are skipped. |
+
+## Expect a throttle on the first request
+
+A ~30 GB image means a worker host must cache it before starting, which is a
+smaller pool than "any host with a free GPU". The first request here sat in
+`throttled` for about 10 minutes; widening from 7 to 11 GPU tiers did not help.
+It cleared on its own. Workers at zero are not billed while this happens.

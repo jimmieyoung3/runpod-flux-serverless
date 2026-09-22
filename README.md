@@ -24,13 +24,15 @@ client ──── {"input": {prompt}} ─────▶ │ queue ──▶ w
 | `src/predict.py` | Pipeline wrapper. Loads FLUX once per worker, generates images. |
 | `src/schema.py` | Request validation. Dependency-free, so it unit-tests without a GPU. |
 | `builder/fetch_model.py` | Downloads the weights during `docker build`, as its own cache layer. |
-| `Dockerfile` | Primary image: layered deps ▸ weights ▸ source. HF token via BuildKit secret. |
+| `Dockerfile` | Reference image: deps ▸ weights ▸ source, HF token via BuildKit secret. |
+| `Dockerfile.kaniko` | **The image that was actually built and deployed.** Weights pre-fetched, no secret. |
 | `Dockerfile.volume` | Fallback image (~9 GB): weights fetched to a network volume on first boot. |
 | `client/call_endpoint.py` | CLI to call the endpoint and save images (`/runsync` or `/run`+poll). |
 | `client/benchmark.py` | Cold start, warm latency, concurrency and $/image measurements. |
 | `tests/test_schema.py` | 25 unit tests for input handling. |
 | `scripts/build_and_push.sh` | Local build + push. |
-| `scripts/build_on_pod.sh` | Daemonless build from inside a RunPod CPU pod (Buildah). |
+| `scripts/fetch_weights_local.py` | Downloads weights into the build context, keeping the token out of the image. |
+| `scripts/build_on_pod.sh` | Daemonless build from inside a RunPod CPU pod (Kaniko). |
 | `docs/DEPLOY.md` | Step-by-step RunPod console runbook. |
 
 ## API
@@ -130,7 +132,7 @@ rather than a detail.
 
 | | `Dockerfile` (primary) | `Dockerfile.volume` (fallback) |
 | --- | --- | --- |
-| Image size | ~36 GB | ~9 GB |
+| Image size | **29.87 GB** compressed (~45 GB on disk) | ~9 GB |
 | Weights | baked into the image | downloaded once onto a RunPod network volume |
 | Cold start, first ever worker | image pull | image pull + ~10 min download |
 | Cold start, subsequent workers | image pull (host-cached) + model load | volume read + model load |
@@ -138,14 +140,14 @@ rather than a detail.
 | Needs `HF_TOKEN` on the endpoint | no | yes |
 
 The primary image is what the brief asks for and what removes the Hub from the
-critical path. The fallback exists because a 36 GB image is not always buildable
+critical path. The fallback exists because a 30 GB image is not always buildable
 or pushable — and shipping a smaller image with a warm shared volume is a normal
 production answer at this model size.
 
-### Building the 36 GB image without a fast uplink
+### Building the image without a fast uplink
 
-A home connection makes the push, not the build, the bottleneck: 36 GB at a
-typical residential ~15 Mbit uplink is 5-6 hours. `scripts/build_on_pod.sh`
+A home connection makes the push, not the build, the bottleneck: ~30 GB at a
+typical residential ~15 Mbit uplink is over 4 hours. `scripts/build_on_pod.sh`
 builds from inside a RunPod CPU pod instead, on a datacenter link, where the
 same work takes minutes.
 
@@ -186,7 +188,7 @@ repository like FLUX.1-dev requires.
 cold worker that pulls 34 GB from the Hub pays for that download on every scale-up
 — and inherits the Hub's availability. Baking them in moves the cost to build time
 and makes cold start a function of image pull (cached on the host after the first
-pull) plus `from_pretrained`. The trade is a ~40 GB image and a slow first deploy.
+pull) plus `from_pretrained`. The trade is a 29.87 GB image and a slow first deploy.
 `HF_HUB_OFFLINE=1` at runtime enforces that nothing reaches for the network.
 
 **Load at import, not per request.** The pipeline is constructed at module import,
@@ -236,6 +238,18 @@ MODEL_ID=black-forest-labs/FLUX.1-schnell ./scripts/build_and_push.sh schnell-v1
 
 The handler picks up schnell's defaults (4 steps, guidance 0.0, 256-token sequence
 length) automatically from `MODEL_ID`.
+
+## What was actually exercised
+
+Being explicit, since the repository carries three Dockerfiles:
+
+| Path | Status |
+| --- | --- |
+| `Dockerfile.kaniko` | **Built and deployed.** Produced `flux-runpod:v1`, 29.87 GB. |
+| `Dockerfile` | Not run. It is the BuildKit-secret reference for environments where BuildKit works. |
+| `Dockerfile.volume` | Not built. Written as the fallback when the throttling described above looked terminal. |
+
+The measured results below all come from the deployed Kaniko image.
 
 ## Results
 
