@@ -107,7 +107,7 @@ export IMAGE=docker.io/<dockerhub-user>/flux-runpod
 export RUNPOD_API_KEY=... RUNPOD_ENDPOINT_ID=...
 python client/call_endpoint.py "a red fox in a snowy forest at dawn" --seed 7
 python client/call_endpoint.py --health          # model + GPU report, no generation
-python client/benchmark.py --runs 5 --gpu-rate 0.00076
+python client/benchmark.py --runs 5 --gpu-rate 0.000339   # A40 $/s; A100 is 0.000756
 ```
 
 Or with plain curl:

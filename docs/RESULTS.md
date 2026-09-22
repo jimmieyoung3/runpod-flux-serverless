@@ -23,11 +23,16 @@ and [`benchmark-a100.json`](benchmark-a100.json) (A100).
 
 | Scenario | delayTime | executionTime | Wall |
 | --- | --- | --- | --- |
-| First-ever cold start (image not yet on any host) | **609 s** | 0.04 s | 650 s |
+| First-ever cold start, health call only | **609 s** | 0.04 s | 650 s |
 | Cold start, image cached on host (A100) | **15.5 s** | 16.0 s | 35.2 s |
 | Warm, A40 (mean of 5) | 0.69 s | **30.32 s** (σ 0.06) | 33.1 s |
 | Warm, A100 (mean of 4) | 0.80 s | **14.07 s** (σ 0.04) | 16.0 s |
 | 2 concurrent, A40 | 16.42 s | 30.40 s | 49.9 s (burst 66.6 s) |
+
+The first row is a health call, which reports model and GPU information without
+generating, so its executionTime covers only the round trip. It is listed because
+its delayTime captures the one-time cost of scheduling a worker and pulling a
+30 GB image onto a host that had never seen it.
 
 Model load from the baked-in weights: **7.2 to 8.0 s**. The same weights fetched
 from the Hugging Face Hub take roughly 10 minutes, so baking them in is a ~75×

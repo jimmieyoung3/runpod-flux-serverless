@@ -149,13 +149,13 @@ def build():
           P("The endpoint is a single-purpose GPU worker. RunPod owns the queue, autoscaling and "
             "HTTP surface; the worker owns model loading and inference."),
           Paragraph(
-              "client&nbsp;&nbsp;──&nbsp;POST /runsync {\"input\":{\"prompt\":…}}&nbsp;──▶&nbsp;&nbsp;RunPod queue<br/>"
-              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br/>"
-              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br/>"
-              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GPU worker (0 to 2, scale to zero)<br/>"
-              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ import: FluxPipeline.from_pretrained(/models/flux)<br/>"
-              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ warmup: one 512px / 1-step pass<br/>"
-              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ per request: validate ▸ generate ▸ encode base64",
+              "client&nbsp;&nbsp;--&nbsp;&nbsp;POST /runsync {\"input\":{\"prompt\": ...}}&nbsp;&nbsp;--&gt;&nbsp;&nbsp;RunPod queue<br/>"
+              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br/>"
+              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br/>"
+              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GPU worker (0 to 2, scale to zero)<br/>"
+              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|- import: FluxPipeline.from_pretrained(/models/flux)<br/>"
+              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|- warmup: one 512px / 1-step pass<br/>"
+              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\\- per request: validate &gt; generate &gt; encode base64",
               S["code"]),
           P("Three decisions define the design.", "h2"),
           table([
@@ -258,12 +258,15 @@ def build():
           P("Latency at 1024&#215;1024, 28 steps, guidance 3.5", "h2"),
           table([
               ["Scenario", "delayTime", "executionTime", "Wall"],
-              ["First-ever cold start (image on no host yet)", "<b>609 s</b>", "0.04 s", "650 s"],
+              ["First-ever cold start, health call only", "<b>609 s</b>", "0.04 s", "650 s"],
               ["Cold start, image cached on host (A100)", "<b>15.5 s</b>", "16.0 s", "35.2 s"],
               ["Warm, A40 (mean of 5)", "0.69 s", "<b>30.32 s</b> (σ 0.06)", "33.1 s"],
               ["Warm, A100 (mean of 4)", "0.80 s", "<b>14.07 s</b> (σ 0.04)", "16.0 s"],
               ["2 concurrent, A40", "16.42 s", "30.40 s", "49.9 s"],
           ], [64 * mm, 25 * mm, 40 * mm, W - 129 * mm]),
+          P("The first row is a health call, which reports model and GPU information without generating, so its "
+            "executionTime covers only the round trip. It is listed because its delayTime captures the one-time "
+            "cost of scheduling a worker and pulling a 30 GB image onto a host that had never seen it."),
           P("A standard deviation of 0.06 s across warm runs confirms the pipeline stays resident and nothing "
             "is re-loaded per request. Model load from the baked weights is 7.2 to 8.0 s."),
           P("Cost", "h2"),
@@ -302,7 +305,7 @@ def build():
         ("flux-20260922-122620-1234-0.png",
          "Seed 1234. “an isometric cutaway of a tiny mechanical workshop… tilt-shift”."),
         ("flux-20260922-122955-2026-0.png",
-         "Seed 2026. “a lone lighthouse on a basalt cliff during a winter storm”. This was the cold-start request."),
+         "Seed 2026. “a lone lighthouse on a basalt cliff during a winter storm”. Generated on the image-cached cold start, 15.5 s delay."),
         ("flux-20260922-122650-99-0.png",
          "Seed 99, 832&#215;1216, non-square output exercising the dimension snapping in schema.py."),
     ]
@@ -338,10 +341,11 @@ def build():
     # ------------------------------------------------------------- using it
     F += [P("6. Using the endpoint", "h1"),
           Paragraph(
-              "curl -X POST https://api.runpod.ai/v2/ux61jghq0twkgq/runsync \\<br/>"
+              "curl -s -X POST https://api.runpod.ai/v2/ux61jghq0twkgq/runsync \\<br/>"
               "&nbsp;&nbsp;-H \"Authorization: Bearer $RUNPOD_API_KEY\" \\<br/>"
               "&nbsp;&nbsp;-H \"Content-Type: application/json\" \\<br/>"
-              "&nbsp;&nbsp;-d '{\"input\": {\"prompt\": \"a red fox in a snowy forest\", \"seed\": 7}}'",
+              "&nbsp;&nbsp;-d '{\"input\": {\"prompt\": \"a red fox in a snowy forest\", \"seed\": 7}}' &gt; resp.json<br/><br/>"
+              "python -c \"import json, base64; d = json.load(open('resp.json'))['output']; open('out.png', 'wb').write(base64.b64decode(d['images'][0]))\"",
               S["code"]),
           P("Or with the repository's client, which saves the decoded image and prints the metrics:"),
           Paragraph(
