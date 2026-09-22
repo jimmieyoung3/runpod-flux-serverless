@@ -26,4 +26,17 @@ echo
 "$PY" client/call_endpoint.py "$PROMPT" --out demo-output
 
 echo
-echo "── open the image from demo-output/ ────────────────────"
+echo "── opening ─────────────────────────────────────────────"
+NEWEST="$(ls -t demo-output/*.png 2>/dev/null | head -1 || true)"
+if [[ -n "$NEWEST" ]]; then
+  # On WSL, hand the image to the Windows default viewer. explorer.exe always
+  # returns a non-zero exit code even on success, hence the `|| true`.
+  if command -v explorer.exe >/dev/null && command -v wslpath >/dev/null; then
+    explorer.exe "$(wslpath -w "$NEWEST")" >/dev/null 2>&1 || true
+    echo "  opened $NEWEST in the Windows viewer"
+  else
+    echo "  saved $NEWEST"
+  fi
+else
+  echo "  no image produced - check the output above"
+fi
