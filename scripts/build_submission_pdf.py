@@ -87,7 +87,7 @@ def header_footer(canvas, doc):
     canvas.saveState()
     canvas.setFont("Helvetica", 7.6)
     canvas.setFillColor(MUTED)
-    canvas.drawString(18 * mm, 12 * mm, "Jimmie Young — RunPod Serverless Endpoint Case Study")
+    canvas.drawString(18 * mm, 12 * mm, "Jimmie Young  ·  RunPod Serverless Endpoint Case Study")
     canvas.drawRightString(A4[0] - 18 * mm, 12 * mm, f"{doc.page}")
     canvas.setStrokeColor(RULE)
     canvas.setLineWidth(0.4)
@@ -152,7 +152,7 @@ def build():
               "client&nbsp;&nbsp;──&nbsp;POST /runsync {\"input\":{\"prompt\":…}}&nbsp;──▶&nbsp;&nbsp;RunPod queue<br/>"
               "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br/>"
               "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br/>"
-              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GPU worker (0&#8211;2, scale to zero)<br/>"
+              "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GPU worker (0 to 2, scale to zero)<br/>"
               "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ import: FluxPipeline.from_pretrained(/models/flux)<br/>"
               "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ warmup: one 512px / 1-step pass<br/>"
               "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ per request: validate ▸ generate ▸ encode base64",
@@ -178,7 +178,7 @@ def build():
           P("<font face='Courier'>src/handler.py</font> is the RunPod entry point; "
             "<font face='Courier'>src/predict.py</font> owns the pipeline and "
             "<font face='Courier'>src/schema.py</font> validates input. Validation is deliberately "
-            "free of torch and diffusers so it unit-tests on any machine — 25 tests run without a GPU."),
+            "free of torch and diffusers so it unit-tests on any machine. 25 tests run without a GPU."),
           Paragraph(
               "def handler(job):<br/>"
               "&nbsp;&nbsp;&nbsp;&nbsp;params = validate(job.get(\"input\"), DEFAULTS)<br/>"
@@ -218,7 +218,7 @@ def build():
           P("RunPod pods have no <font face='Courier'>CAP_SYS_ADMIN</font>, and the hosts set "
             "<font face='Courier'>apparmor_restrict_unprivileged_userns=1</font>, so "
             "<font face='Courier'>unshare(CLONE_NEWUSER)</font> is denied. Both tools re-exec into a user "
-            "namespace at start-up — before they honour <font face='Courier'>--isolation chroot</font> — so "
+            "namespace at start-up, before they honour <font face='Courier'>--isolation chroot</font>, so "
             "even <font face='Courier'>buildah containers</font> fails. Kaniko uses no namespaces and is the "
             "workable builder. RunPod's own in-pod build tutorial reaches for Bazel and crane for the same reason."),
           P("Kaniko destroys the pod it runs in", "h2"),
@@ -232,7 +232,7 @@ def build():
           P("Kaniko does not implement <font face='Courier'>RUN --mount=type=secret</font>. Passing the Hugging "
             "Face token as a build argument would persist it in the image history, so instead the weights are "
             "downloaded into the build context beforehand and simply copied in. The token never enters the image, "
-            "its history or its layers — verified by auditing the published image config, which contains zero "
+            "its history or its layers. That was verified by auditing the published image config, which contains zero "
             "token-shaped strings. The cost is peak build disk, since the weights exist twice during the build."),
           P("RunPod's GitHub integration would otherwise be the natural choice. It is ruled out on two counts: "
             "it caps <font face='Courier'>docker build</font> at 30 minutes, and it exposes no build-time secret, "
@@ -255,17 +255,17 @@ def build():
           P("Measured against the live endpoint on 22 September 2026. "
             "<font face='Courier'>executionTime</font> is what RunPod bills; "
             "<font face='Courier'>delayTime</font> is queue plus worker start-up."),
-          P("Latency — 1024&#215;1024, 28 steps, guidance 3.5", "h2"),
+          P("Latency at 1024&#215;1024, 28 steps, guidance 3.5", "h2"),
           table([
               ["Scenario", "delayTime", "executionTime", "Wall"],
               ["First-ever cold start (image on no host yet)", "<b>609 s</b>", "0.04 s", "650 s"],
               ["Cold start, image cached on host (A100)", "<b>15.5 s</b>", "16.0 s", "35.2 s"],
-              ["Warm, A40 — mean of 5", "0.69 s", "<b>30.32 s</b> (σ 0.06)", "33.1 s"],
-              ["Warm, A100 — mean of 4", "0.80 s", "<b>14.07 s</b> (σ 0.04)", "16.0 s"],
+              ["Warm, A40 (mean of 5)", "0.69 s", "<b>30.32 s</b> (σ 0.06)", "33.1 s"],
+              ["Warm, A100 (mean of 4)", "0.80 s", "<b>14.07 s</b> (σ 0.04)", "16.0 s"],
               ["2 concurrent, A40", "16.42 s", "30.40 s", "49.9 s"],
           ], [64 * mm, 25 * mm, 40 * mm, W - 129 * mm]),
           P("A standard deviation of 0.06 s across warm runs confirms the pipeline stays resident and nothing "
-            "is re-loaded per request. Model load from the baked weights is 7.2–8.0 s."),
+            "is re-loaded per request. Model load from the baked weights is 7.2 to 8.0 s."),
           P("Cost", "h2"),
           table([
               ["GPU", "$/hr", "s/image", "$/image", "Images per $1"],
@@ -274,20 +274,20 @@ def build():
           ], [44 * mm, 22 * mm, 24 * mm, 26 * mm, W - 116 * mm]),
           P("The most useful finding: <b>cost per image is nearly GPU-independent</b>. A 2.2&#215; faster card "
             "costs 2.2&#215; more per second, so the two differ by 3%. Choose the GPU tier for the latency you "
-            "need, not to save money — what actually moves cost is step count, resolution, and idle workers."),
+            "need, not to save money. What actually moves cost is step count, resolution, and idle workers."),
           P("What a 30 GB image costs you", "h2"),
           P("The first request sat in <font face='Courier'>throttled</font> for roughly 10 minutes before a worker "
-            "was placed, and widening from 7 to 11 GPU tiers did not help — which points at the image rather than "
+            "was placed, and widening from 7 to 11 GPU tiers did not help, which points at the image rather than "
             "GPU scarcity. A host must cache ~30 GB before it can start a worker, a smaller pool than “any host "
             "with a free GPU”. So the baked-weights decision has a measurable cost as well as a measurable benefit:"),
           table([
               ["", "Baked weights (deployed)", "Network volume (fallback)"],
               ["Model available in", "<b>7.2 s</b>", "~10 min first boot, then volume read"],
-              ["First scheduling", "~10 min throttle", "fast — ~9 GB image"],
+              ["First scheduling", "~10 min throttle", "fast, ~9 GB image"],
               ["Runtime Hub dependency", "none", "first boot only"],
           ], [38 * mm, 44 * mm, W - 82 * mm]),
           P("For a steady endpoint the baked image is the better trade. For one that scales from zero often, or "
-            "across many regions, the volume variant schedules faster — it is implemented in the repository as "
+            "across many regions, the volume variant schedules faster. It is implemented in the repository as "
             "<font face='Courier'>Dockerfile.volume</font>.")]
 
     F += [PageBreak()]
@@ -298,13 +298,13 @@ def build():
 
     pairs = [
         ("flux-20260922-122546-7-0.png",
-         "Seed 7 — “a hand-lettered enamel shop sign reading FLUX ON RUNPOD…”. Text renders correctly."),
+         "Seed 7. “a hand-lettered enamel shop sign reading FLUX ON RUNPOD…”. Text renders correctly."),
         ("flux-20260922-122620-1234-0.png",
-         "Seed 1234 — “an isometric cutaway of a tiny mechanical workshop… tilt-shift”."),
+         "Seed 1234. “an isometric cutaway of a tiny mechanical workshop… tilt-shift”."),
         ("flux-20260922-122955-2026-0.png",
-         "Seed 2026 — “a lone lighthouse on a basalt cliff during a winter storm”. This was the cold-start request."),
+         "Seed 2026. “a lone lighthouse on a basalt cliff during a winter storm”. This was the cold-start request."),
         ("flux-20260922-122650-99-0.png",
-         "Seed 99, 832&#215;1216 — non-square output exercising the dimension snapping in schema.py."),
+         "Seed 99, 832&#215;1216, non-square output exercising the dimension snapping in schema.py."),
     ]
     # A KeepTogether inside a table cell makes reportlab compute an unbounded
     # row height, so images and captions go in as plain flowables, two per row.
@@ -353,13 +353,13 @@ def build():
           table([
               ["Field", "Default", "Notes"],
               ["<font face='Courier'>prompt</font>", "required", "≤ 2000 characters"],
-              ["<font face='Courier'>width</font>, <font face='Courier'>height</font>", "1024", "snapped to a multiple of 16, clamped 256–1536"],
-              ["<font face='Courier'>num_inference_steps</font>", "28", "1–50"],
-              ["<font face='Courier'>guidance_scale</font>", "3.5", "0–20"],
+              ["<font face='Courier'>width</font>, <font face='Courier'>height</font>", "1024", "snapped to a multiple of 16, clamped 256-1536"],
+              ["<font face='Courier'>num_inference_steps</font>", "28", "1-50"],
+              ["<font face='Courier'>guidance_scale</font>", "3.5", "0-20"],
               ["<font face='Courier'>seed</font>", "random", "the seed used is always returned"],
-              ["<font face='Courier'>num_images</font>", "1", "1–4"],
+              ["<font face='Courier'>num_images</font>", "1", "1-4"],
               ["<font face='Courier'>output_format</font>", "PNG", "PNG, JPEG or WEBP"],
-              ["<font face='Courier'>action</font>", "—", "<font face='Courier'>\"health\"</font> returns model/GPU info without generating"],
+              ["<font face='Courier'>action</font>", "(none)", "<font face='Courier'>\"health\"</font> returns model/GPU info without generating"],
           ], [44 * mm, 22 * mm, W - 66 * mm]),
           P("7. What I would change for production", "h1"),
           table([
@@ -371,13 +371,13 @@ def build():
                "Base64 is convenient for review but inflates payloads by a third and hits RunPod's ~20 MB "
                "response ceiling at about four 1024px PNGs. The code path already exists."],
               ["Pin the GPU tier once traffic is known",
-               "Latency varied 14–30 s purely on which card was scheduled. Latency-sensitive traffic should "
+               "Latency varied from 14 to 30 s purely on which card was scheduled. Latency-sensitive traffic should "
                "pin the faster tier; batch traffic should not pay for it."],
               ["Add request-level observability",
                "The handler returns per-request metrics, but nothing aggregates them. Prometheus or a log sink "
                "would make regressions visible."],
               ["Quantised variants for throughput",
-               "fp8 or NF4 transformer weights roughly halve both load time and VRAM, at some quality cost — "
+               "fp8 or NF4 transformer weights roughly halve both load time and VRAM, at some quality cost. "
                "worth measuring against the bf16 baseline recorded here."],
           ], [46 * mm, W - 46 * mm]),
           Spacer(1, 10),

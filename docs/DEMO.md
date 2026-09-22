@@ -5,7 +5,7 @@ copy-paste; nothing needs editing except the prompt.
 
 ---
 
-## T-30 minutes — pre-warm
+## T-30 minutes: pre-warm
 
 **This is the step that prevents a disaster.** With no worker running, the first
 request takes 15-30 s, and occasionally much longer: a ~30 GB image means the
@@ -23,7 +23,7 @@ depending on the GPU. **Set it back to 0 after the meeting.**
 
 ---
 
-## T-5 minutes — smoke test
+## T-5 minutes: smoke test
 
 Open a terminal and run all four lines:
 
@@ -37,7 +37,7 @@ export RUNPOD_ENDPOINT_ID=ux61jghq0twkgq
 You should see worker state, then metrics, then the image opens in the Windows
 viewer. Expect `executionTime` of 14-30 s depending on the GPU.
 
-If `workers` shows `idle: 0, ready: 0`, the pre-warm did not take effect — go
+If `workers` shows `idle: 0, ready: 0`, the pre-warm did not take effect, so go
 back and check Active Workers is 1.
 
 **Leave this terminal open.** Do not close it; the two `export` lines are lost
@@ -56,7 +56,7 @@ Show an image from `docs/assets/` and give the headline:
 
 ### 2. Ask them for a prompt
 
-This is the most convincing thing you can do — it proves nothing is pre-baked.
+This is the most convincing thing you can do, because it proves nothing is pre-baked.
 
 ```bash
 ./scripts/demo.sh "whatever they say"
@@ -75,7 +75,7 @@ weights are baked into the image, 28 denoising steps, image comes back as base64
 ```
 
 The line worth saying out loud: *"loading those weights from Hugging Face instead
-would take about ten minutes — that 7.2 seconds is why they are baked into the
+would take about ten minutes, and that 7.2 seconds is why they are baked into the
 image."*
 
 ### 4. Show the console
@@ -130,10 +130,10 @@ Non-square output, to show dimension handling:
 
 | Symptom | Do this |
 | --- | --- |
-| Request hangs past ~60 s | Say "this is a cold start, it is pulling a 30 GB image" — then switch to `docs/assets/` images while it finishes. |
+| Request hangs past ~60 s | Say "this is a cold start, it is pulling a 30 GB image", then switch to `docs/assets/` images while it finishes. |
 | `error: set RUNPOD_API_KEY` | The terminal was closed. Re-run the two `export` lines. |
 | Image does not open | It is still saved. Run `explorer.exe .` in `demo-output/`. |
-| Endpoint returns an error body | Show it — the handler returns structured errors on purpose. Then fall back to saved images. |
+| Endpoint returns an error body | Show it, since the handler returns structured errors on purpose. Then fall back to saved images. |
 | Network dies entirely | Play the backup recording (see below). |
 
 **Record a backup.** Before the meeting, screen-record one successful run. If the

@@ -60,15 +60,15 @@ with header `Authorization: Bearer <RUNPOD_API_KEY>`.
 
 | Field | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `prompt` | string | — | Required, ≤ 2000 chars. |
-| `width`, `height` | int | 1024 | Snapped to a multiple of 16, clamped to 256–1536. |
-| `num_inference_steps` | int | 28 (dev) / 4 (schnell) | 1–50. |
-| `guidance_scale` | float | 3.5 (dev) / 0.0 (schnell) | 0–20. FLUX is guidance-distilled; 3.5 is the sweet spot. |
+| `prompt` | string | required | Required, ≤ 2000 chars. |
+| `width`, `height` | int | 1024 | Snapped to a multiple of 16, clamped to 256-1536. |
+| `num_inference_steps` | int | 28 (dev) / 4 (schnell) | 1-50. |
+| `guidance_scale` | float | 3.5 (dev) / 0.0 (schnell) | 0-20. FLUX is guidance-distilled; 3.5 is the sweet spot. |
 | `seed` | int | random | Omit for a random seed; the one used is always returned. |
-| `num_images` | int | 1 | 1–4. |
+| `num_images` | int | 1 | 1-4. |
 | `output_format` | string | `PNG` | `PNG`, `JPEG`, `WEBP`. |
 | `quality` | int | 92 | JPEG/WEBP only. |
-| `action` | string | — | `"health"` returns model/GPU info without generating. |
+| `action` | string | none | `"health"` returns model/GPU info without generating. |
 
 There is deliberately **no `negative_prompt`**: FLUX.1 is distilled to run without
 classifier-free guidance, so `FluxPipeline` has no negative conditioning to apply.
@@ -89,7 +89,7 @@ Silently accepting the field would be worse than rejecting it.
 ```
 
 Errors come back as `{"error": "...", "error_type": "validation_error" | "inference_error"}`
-with HTTP 200 — RunPod reserves non-2xx for platform failures, so application
+with HTTP 200. RunPod reserves non-2xx for platform failures, so application
 errors are reported in the body.
 
 ## Quick start
@@ -100,7 +100,7 @@ export HF_TOKEN=hf_xxx
 export IMAGE=docker.io/<dockerhub-user>/flux-runpod
 ./scripts/build_and_push.sh v1
 
-# 2. Deploy — see docs/DEPLOY.md for the console walkthrough
+# 2. Deploy: see docs/DEPLOY.md for the console walkthrough
 
 # 3. Call it
 export RUNPOD_API_KEY=... RUNPOD_ENDPOINT_ID=...
@@ -141,7 +141,7 @@ rather than a detail.
 
 The primary image is what the brief asks for and what removes the Hub from the
 critical path. The fallback exists because a 30 GB image is not always buildable
-or pushable — and shipping a smaller image with a warm shared volume is a normal
+or pushable, and shipping a smaller image with a warm shared volume is a normal
 production answer at this model size.
 
 ### Building the image without a fast uplink
@@ -186,7 +186,7 @@ repository like FLUX.1-dev requires.
 
 **Weights in the image, not downloaded at boot.** RunPod bills worker time, and a
 cold worker that pulls 34 GB from the Hub pays for that download on every scale-up
-— and inherits the Hub's availability. Baking them in moves the cost to build time
+and it inherits the Hub's availability. Baking them in moves the cost to build time
 and makes cold start a function of image pull (cached on the host after the first
 pull) plus `from_pretrained`. The trade is a 29.87 GB image and a slow first deploy.
 `HF_HUB_OFFLINE=1` at runtime enforces that nothing reaches for the network.
@@ -208,7 +208,7 @@ anyone who pulls the image.
 
 **Automatic CPU offload below 40 GB VRAM.** The bf16 transformer (~23.8 GB) plus
 the T5-XXL text encoder (~9.5 GB) will not co-reside on a 24 GB card. The worker
-detects this and calls `enable_model_cpu_offload()` — slower per image, but it runs
+detects this and calls `enable_model_cpu_offload()`: slower per image, but it runs
 instead of OOMing, so the endpoint tolerates a cheaper GPU tier.
 
 **One job per worker.** Generation saturates the GPU; batching two 1024px requests
@@ -217,7 +217,7 @@ belongs at the worker-count level, which is what RunPod autoscaling does.
 
 **Base64 by default, S3 optional.** Base64 keeps the endpoint dependency-free for
 the reviewer. Setting `BUCKET_ENDPOINT_URL` (+ credentials) on the endpoint switches
-to presigned URLs, which is the right choice past RunPod's ~20 MB response ceiling —
+to presigned URLs, which is the right choice past RunPod's ~20 MB response ceiling,
 roughly four 1024px PNGs.
 
 ## Configuration
@@ -260,5 +260,5 @@ start and warm latency, cost per image, and sample generations.
 
 Code: MIT (`LICENSE`). FLUX.1-dev weights are covered by the
 [FLUX.1-dev Non-Commercial Licence](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md)
-— non-commercial use only, which is why the image is not published publicly.
+which is non-commercial use only, and is why the image is not published publicly.
 FLUX.1-schnell is Apache-2.0.

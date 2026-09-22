@@ -9,12 +9,12 @@ and [`benchmark-a100.json`](benchmark-a100.json) (A100).
 | | |
 | --- | --- |
 | Endpoint ID | `ux61jghq0twkgq` (`flux-dev-txt2img`) |
-| Image | `docker.io/jimmieyoung3/flux-runpod:v1` — **29.87 GB**, private |
+| Image | `docker.io/jimmieyoung3/flux-runpod:v1`, **29.87 GB**, private |
 | Layers | 6; the weights layer is 26.53 GB compressed |
 | Model | `black-forest-labs/FLUX.1-dev`, bfloat16, baked into the image |
 | GPU tiers | 11 selected; workers landed on **A40 48 GB** and **A100-SXM4 80 GB** |
 | Workers | 0 min / 2 max, 60 s idle timeout, FlashBoot enabled |
-| CPU offload | not triggered — both GPUs are above the 40 GB threshold |
+| CPU offload | not triggered; both GPUs are above the 40 GB threshold |
 
 ## Latency
 
@@ -25,11 +25,11 @@ and [`benchmark-a100.json`](benchmark-a100.json) (A100).
 | --- | --- | --- | --- |
 | First-ever cold start (image not yet on any host) | **609 s** | 0.04 s | 650 s |
 | Cold start, image cached on host (A100) | **15.5 s** | 16.0 s | 35.2 s |
-| Warm, A40 — mean of 5 | 0.69 s | **30.32 s** (σ 0.06) | 33.1 s |
-| Warm, A100 — mean of 4 | 0.80 s | **14.07 s** (σ 0.04) | 16.0 s |
+| Warm, A40 (mean of 5) | 0.69 s | **30.32 s** (σ 0.06) | 33.1 s |
+| Warm, A100 (mean of 4) | 0.80 s | **14.07 s** (σ 0.04) | 16.0 s |
 | 2 concurrent, A40 | 16.42 s | 30.40 s | 49.9 s (burst 66.6 s) |
 
-Model load from the baked-in weights: **7.2–8.0 s**. The same weights fetched
+Model load from the baked-in weights: **7.2 to 8.0 s**. The same weights fetched
 from the Hugging Face Hub take roughly 10 minutes, so baking them in is a ~75×
 improvement on the part of cold start that the worker actually controls.
 
@@ -43,7 +43,7 @@ and nothing is re-loaded or re-fetched per request.
 | A40 48 GB | $1.22 | 30.32 | **$0.0103** | 97 |
 | A100-SXM4 80 GB | $2.72 | 14.07 | **$0.0106** | 93 |
 
-The most useful finding here: **cost per image is nearly GPU-independent** — a
+The most useful finding here: **cost per image is nearly GPU-independent**. A
 2.2× faster card costs 2.2× more per second, so the two differ by 3%. Pick the
 GPU tier for the latency you need, not to save money. What actually moves cost is
 step count, resolution, and not leaving workers idling.
@@ -72,7 +72,7 @@ benefit:
 | | Baked weights (deployed) | Network volume (`Dockerfile.volume`) |
 | --- | --- | --- |
 | Model available in | 7.2 s | ~10 min first boot, then volume read |
-| First scheduling | ~10 min throttle | fast — ~9 GB image |
+| First scheduling | ~10 min throttle | fast, ~9 GB image |
 | Runtime Hub dependency | none | first boot only |
 
 For a steady endpoint the baked image is the better trade. For one that scales

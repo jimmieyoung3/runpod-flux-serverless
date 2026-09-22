@@ -1,6 +1,6 @@
 # Deploying the endpoint on RunPod
 
-Everything here is done once. Steps 1–3 can run in parallel with the image build.
+Everything here is done once. Steps 1 to 3 can run in parallel with the image build.
 
 ## 0. Prerequisites
 
@@ -21,7 +21,7 @@ would redistribute non-commercially-licensed weights.
 ### The path used here: build inside a RunPod CPU pod
 
 A home uplink makes the ~30 GB push take hours, so the build runs on a pod
-instead. See the constraints documented in `scripts/build_on_pod.sh` — Buildah
+instead. See the constraints documented in `scripts/build_on_pod.sh`. Buildah
 cannot run in a RunPod pod, and Kaniko destroys the pod it builds in.
 
 ```bash
@@ -33,7 +33,7 @@ git clone <this repo> && cd runpod-flux-serverless
 ```
 
 SSH will drop roughly 60-90 seconds in; that is expected. Watch from your own
-machine instead — the tag appearing in the registry is the completion signal.
+machine instead; the tag appearing in the registry is the completion signal.
 Measured: ~3 min to fetch weights, ~26 min to build and push. Then **terminate
 the pod**, which is unusable afterwards.
 
@@ -73,7 +73,7 @@ RunPod console → **Serverless** → **New Endpoint** → **Import from Docker 
 No environment variables are required. Optional: `WARMUP=0` to skip the warmup
 pass, `LOG_LEVEL=DEBUG` for verbose logs.
 
-Copy the **Endpoint ID** from the endpoint page — that is `RUNPOD_ENDPOINT_ID`.
+Copy the **Endpoint ID** from the endpoint page. That is `RUNPOD_ENDPOINT_ID`.
 
 ## 3. First request
 
