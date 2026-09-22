@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+outputs/
+*.png
+*.jpg
+*.webp
+!docs/assets/*.png
+submission/*.pdf
+!submission/final/*.pdf
+.DS_Store
+.pytest_cache/

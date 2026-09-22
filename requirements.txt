@@ -1,0 +1,14 @@
+# Runtime dependencies for the FLUX serverless worker.
+# torch / torchvision come from the base image (pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime)
+# and are deliberately NOT pinned here so pip cannot pull a second, conflicting CUDA build.
+
+runpod==1.7.7
+diffusers==0.31.0
+transformers==4.46.3
+accelerate==1.1.1
+huggingface_hub==0.26.2
+safetensors==0.4.5
+sentencepiece==0.2.0
+protobuf==5.28.3
+Pillow==11.0.0
+hf_transfer==0.1.8

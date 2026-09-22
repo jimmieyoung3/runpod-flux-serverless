@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7
+#
+# Fallback variant: handler + dependencies only (~9 GB). The weights are NOT
+# baked in; the first worker downloads them onto a RunPod network volume mounted
+# at /runpod-volume, and every later worker on that volume starts from local disk.
+#
+# Trade-off vs the primary Dockerfile: a ~9 GB push instead of ~36 GB, at the
+# cost of a one-time ~10 minute first-boot download. Use this when the 36 GB
+# image cannot be built or pushed.
+#
+#   docker build -f Dockerfile.volume -t <user>/flux-runpod:volume .
+#
+# Requires HF_TOKEN set as an endpoint environment variable (FLUX.1 is gated).
+
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/src
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+ARG MODEL_ID=black-forest-labs/FLUX.1-dev
+# No HF_HUB_OFFLINE here: the worker must be able to reach the Hub on first boot.
+ENV MODEL_ID=${MODEL_ID} \
+    MODEL_DIR=/runpod-volume/flux \
+    HF_HUB_ENABLE_HF_TRANSFER=1 \
+    WARMUP=1
+
+COPY src/ /app/src/
+COPY test_input.json /app/test_input.json
+
+CMD ["python", "-u", "/app/src/handler.py"]

@@ -1,0 +1,11 @@
+{
+  "input": {
+    "prompt": "a cinematic photograph of a glass terrarium on a windowsill at golden hour, shallow depth of field, 85mm",
+    "width": 1024,
+    "height": 1024,
+    "num_inference_steps": 28,
+    "guidance_scale": 3.5,
+    "seed": 42,
+    "output_format": "PNG"
+  }
+}

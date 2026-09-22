@@ -1,0 +1,14 @@
+.git
+.github
+.gitignore
+docs/
+client/
+tests/
+outputs/
+submission/
+*.md
+!README.md
+__pycache__/
+*.pyc
+.venv/
+.env
