@@ -145,20 +145,40 @@ production answer at this model size.
 ### Building the 36 GB image without a fast uplink
 
 A home connection makes the push, not the build, the bottleneck: 36 GB at a
-typical residential ~15 Mbit uplink is 5–6 hours. `scripts/build_on_pod.sh`
-builds from inside a RunPod CPU pod instead, on a datacenter link.
+typical residential ~15 Mbit uplink is 5-6 hours. `scripts/build_on_pod.sh`
+builds from inside a RunPod CPU pod instead, on a datacenter link, where the
+same work takes minutes.
 
-RunPod pods cannot run a Docker daemon — Docker-in-Docker went away with the
-Kata-based pods — so the script uses **Buildah** with `--isolation chroot` and
-the `vfs` storage driver, which need neither user namespaces nor overlayfs. This
-is the same approach as RunPod's own
-[in-pod image build tutorial](https://docs.runpod.io/tutorials/pods/build-docker-images),
-which uses Bazel + crane for the same reason.
+Two platform constraints shape that script, both found by hitting them:
+
+**Buildah and Podman cannot run in a RunPod pod.** Pods have no `CAP_SYS_ADMIN`,
+and the hosts set `apparmor_restrict_unprivileged_userns=1`, so
+`unshare(CLONE_NEWUSER)` is denied. Both tools re-exec into a user namespace at
+startup, *before* they honour `--isolation chroot`, so even `buildah containers`
+fails. [Kaniko](https://github.com/GoogleContainerTools/kaniko) uses no
+namespaces and is the only workable builder. RunPod's own
+[in-pod build tutorial](https://docs.runpod.io/tutorials/pods/build-docker-images)
+reaches for Bazel + crane for the same underlying reason.
+
+**Kaniko destroys the pod it runs in.** It extracts the base image over `/`,
+deleting the Ubuntu userland `sshd` depends on. SSH drops ~60-90 s into the build
+and never recovers - `--ignore-path` for `/etc/ssh` and `/usr/sbin/sshd` is not
+enough, because sshd's PAM and libc dependencies go too. So Kaniko must **push
+the image itself**: building to a local tarball strands the result on a pod you
+can no longer reach. The build runs detached under `setsid`, and progress is
+tracked from outside against the registry (`crane manifest`).
+
+**The token never enters the image.** Kaniko does not implement
+`RUN --mount=type=secret`, and demoting the HF token to a build arg would persist
+it in the image history. Instead `scripts/fetch_weights_local.py` downloads the
+weights into the build context beforehand and the Dockerfile just `COPY`s them,
+so the token stays on the build host. The cost is peak disk: the weights exist
+twice during the build, hence the ~120 GB requirement.
 
 RunPod's [GitHub integration](https://docs.runpod.io/serverless/github-integration)
-would otherwise be the obvious choice, and it is ruled out here on two counts: it
-caps `docker build` at 30 minutes, and it exposes no build-time secret, which a
-gated repository like FLUX.1-dev requires.
+would otherwise be the obvious choice, and it is ruled out on two counts: it caps
+`docker build` at 30 minutes, and it exposes no build-time secret, which a gated
+repository like FLUX.1-dev requires.
 
 ## Design decisions
 

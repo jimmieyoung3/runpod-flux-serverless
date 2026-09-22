@@ -1,84 +1,107 @@
 #!/usr/bin/env bash
-# Build the full 36 GB image from inside a RunPod CPU pod and push it, using the
+# Build the ~36 GB image from inside a RunPod CPU pod and push it, using the
 # pod's datacenter uplink instead of a home connection.
 #
-# Why not `docker build`? RunPod pods cannot run a Docker daemon - Docker-in-Docker
-# was removed with the Kata-based pods. RunPod's own tutorial builds images in a
-# pod with a daemonless builder; this uses Buildah, which does the same job for a
-# plain Dockerfile. `--isolation chroot` avoids the user-namespace and mount
-# syscalls an unprivileged container cannot make; `--storage-driver vfs` avoids
-# overlayfs-on-overlayfs.
+# ---------------------------------------------------------------------------
+# Two constraints drive every odd-looking choice below. Both were found the
+# hard way; please read before "simplifying" this script.
 #
-# Pod requirements:
-#   - CPU pod, Ubuntu-based image with a shell (e.g. runpod/base:*-cpu)
-#   - >= 150 GB container disk. RunPod caps CPU-pod disk at 15 GB per vCPU
-#     (cpu5 flavors), so that means >= 10 vCPU - the vCPU count is really a
-#     disk requirement here, not a compute one.
+# 1. Buildah and Podman cannot run here at all.
+#    RunPod pods have no CAP_SYS_ADMIN, and the hosts set
+#    apparmor_restrict_unprivileged_userns=1, so unshare(CLONE_NEWUSER) is
+#    denied. Both tools re-exec into a user namespace at startup - before they
+#    honour --isolation chroot - so even `buildah containers` fails. Kaniko
+#    uses no namespaces, so it is the only workable builder.
 #
-# Disk maths: `buildah bud` defaults to --layers=false, so the whole Dockerfile
-# runs in ONE working container and commits once. That means roughly
-# base (8 GB) + weights (34 GB) in the container, plus the committed image
-# (~44 GB) = ~90 GB peak, not the ~170 GB that per-layer vfs copies would cost.
-# Do not add --layers to the bud call below without also raising the disk.
+# 2. Kaniko destroys the pod it runs in.
+#    It extracts the base image over `/`, which deletes the Ubuntu userland
+#    that sshd depends on. SSH dies mid-build and does NOT recover, even with
+#    --ignore-path for /etc/ssh and /usr/sbin/sshd, because sshd's PAM and libc
+#    dependencies go with it. Therefore:
+#       - Kaniko must PUSH the image itself (--no-push + --tarPath would strand
+#         the result on an unreachable pod),
+#       - it must run detached via setsid so losing SSH cannot kill it,
+#       - and progress must be tracked from OUTSIDE, against the registry.
+#    Expect to lose SSH roughly 60-90 seconds in. That is normal.
+#
+# The Docker Hub repository MUST already exist and be PRIVATE. Kaniko creates
+# a missing repo as PUBLIC, which for FLUX.1-dev would redistribute
+# non-commercially-licensed weights.
+# ---------------------------------------------------------------------------
 #
 # Usage, from inside the pod:
-#   export HF_TOKEN=hf_...
-#   export IMAGE=docker.io/<user>/flux-runpod
-#   export DOCKERHUB_USER=<user> DOCKERHUB_TOKEN=<access-token>
-#   git clone <this repo> && cd flux-serverless
-#   ./scripts/build_on_pod.sh v1
+#   export HF_TOKEN=hf_...  IMAGE=docker.io/<user>/flux-runpod  TAG=v1
+#   ./scripts/build_on_pod.sh
 set -euo pipefail
 
-TAG="${1:-v1}"
+TAG="${TAG:-${1:-v1}}"
 IMAGE="${IMAGE:?set IMAGE, e.g. docker.io/yourname/flux-runpod}"
 MODEL_ID="${MODEL_ID:-black-forest-labs/FLUX.1-dev}"
 : "${HF_TOKEN:?set HF_TOKEN - FLUX.1 is a gated repository}"
-: "${DOCKERHUB_USER:?set DOCKERHUB_USER}"
-: "${DOCKERHUB_TOKEN:?set DOCKERHUB_TOKEN (a Docker Hub access token, not your password)}"
 
-ROOT="${BUILDAH_ROOT:-/workspace/containers}"
+CTX="$(cd "$(dirname "$0")/.." && pwd)"
+KANIKO_VERSION="${KANIKO_VERSION:-v1.23.2}"
+CRANE_VERSION="${CRANE_VERSION:-v0.20.2}"
 
-echo "==> checking disk headroom at $(dirname "$ROOT")"
-avail_gb=$(df -BG --output=avail "$(dirname "$ROOT")" | tail -1 | tr -dc '0-9')
+echo "==> disk check"
+avail_gb=$(df -BG --output=avail /root | tail -1 | tr -dc '0-9')
+# Peak usage: weights in the context (34) + base rootfs (8) + weights copied
+# into the image filesystem (34) + the snapshot layer (~34).
 if (( avail_gb < 120 )); then
-  echo "error: only ${avail_gb} GB free at $(dirname "$ROOT"); vfs storage needs ~120 GB." >&2
-  echo "       Resize the pod's container disk or attach a network volume." >&2
+  echo "error: ${avail_gb} GB free; the build peaks near 120 GB." >&2
+  echo "       RunPod caps CPU-pod disk at 15 GB/vCPU (cpu5) or 10 GB/vCPU (cpu3)," >&2
+  echo "       and vcpuCount must be a power of 2, so size the pod accordingly." >&2
   exit 1
 fi
 
-if ! command -v buildah >/dev/null; then
-  echo "==> installing buildah"
-  apt-get update -qq
-  apt-get install -y -qq buildah ca-certificates
+echo "==> installing crane + kaniko (no daemon, no namespaces)"
+if ! command -v crane >/dev/null; then
+  curl -sL "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" \
+    | tar -xz -C /usr/local/bin crane
+  chmod +x /usr/local/bin/crane
+fi
+# Kaniko ships only as an image, and we cannot run images here - so unpack it.
+if [[ ! -x /kaniko-src/kaniko/executor ]]; then
+  mkdir -p /kaniko-src
+  crane export "gcr.io/kaniko-project/executor:${KANIKO_VERSION}" - | tar -xC /kaniko-src
 fi
 
-mkdir -p "$ROOT"
-export BUILDAH_ISOLATION=chroot
-BUILDAH=(buildah --root "$ROOT" --storage-driver vfs)
+echo "==> fetching weights into the build context"
+# Deliberately OUTSIDE the image build: Kaniko cannot consume BuildKit secrets,
+# and passing the token as a build arg would persist it in the image history.
+if [[ ! -f "${CTX}/weights/model_index.json" ]]; then
+  pip install -q --break-system-packages huggingface_hub==0.26.2 hf_transfer==0.1.8
+  HF_HUB_ENABLE_HF_TRANSFER=1 MODEL_ID="${MODEL_ID}" \
+    python3 "${CTX}/scripts/fetch_weights_local.py" "${CTX}/weights"
+else
+  echo "    (already present, skipping)"
+fi
 
-echo "==> logging in to Docker Hub"
-printf '%s' "$DOCKERHUB_TOKEN" | "${BUILDAH[@]}" login --username "$DOCKERHUB_USER" --password-stdin docker.io
+echo "==> writing registry auth"
+: "${DOCKERHUB_USER:?set DOCKERHUB_USER}"
+: "${DOCKERHUB_TOKEN:?set DOCKERHUB_TOKEN}"
+umask 077
+mkdir -p /root/.docker
+printf '{"auths":{"https://index.docker.io/v1/":{"auth":"%s"}}}' \
+  "$(printf '%s:%s' "$DOCKERHUB_USER" "$DOCKERHUB_TOKEN" | base64 -w0)" > /root/.docker/config.json
 
-cd "$(dirname "$0")/.."
-
-# Buildah's --secret reads from a file, so stage the token in one that is
-# owner-only and removed on any exit path.
-SECRET_FILE="$(mktemp)"
-chmod 600 "$SECRET_FILE"
-trap 'rm -f "$SECRET_FILE"' EXIT INT TERM
-printf '%s' "$HF_TOKEN" > "$SECRET_FILE"
-
-echo "==> building ${IMAGE}:${TAG} (expect ~20-40 min: 34 GB of weights)"
-"${BUILDAH[@]}" bud \
-  --isolation chroot \
-  --secret "id=hf_token,src=${SECRET_FILE}" \
+echo "==> launching kaniko (SSH will die shortly; that is expected)"
+DOCKER_CONFIG=/root/.docker SSL_CERT_DIR=/kaniko-src/ssl/certs \
+setsid nohup /kaniko-src/kaniko/executor \
+  --force \
+  --context "dir://${CTX}" \
+  --dockerfile "${CTX}/Dockerfile.kaniko" \
+  --destination "${IMAGE}:${TAG}" \
   --build-arg "MODEL_ID=${MODEL_ID}" \
-  -t "${IMAGE}:${TAG}" \
-  -f Dockerfile \
-  .
+  --single-snapshot \
+  --compressed-caching=false \
+  --ignore-path=/root \
+  --ignore-path=/kaniko-src \
+  --ignore-path=/usr/local/bin \
+  --verbosity=info \
+  > /root/kaniko.log 2>&1 < /dev/null &
 
-echo "==> pushing"
-"${BUILDAH[@]}" push "${IMAGE}:${TAG}"
-
-echo "==> done: ${IMAGE}:${TAG}"
-echo "    Remember to stop/terminate the pod so it stops billing."
+echo "==> kaniko detached as pid $!"
+echo "    Watch from your workstation, not from here:"
+echo "      crane manifest ${IMAGE}:${TAG}    # succeeds once the push lands"
+echo "    Then TERMINATE the pod - it is unusable after this point."
