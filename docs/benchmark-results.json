@@ -1,0 +1,46 @@
+{
+  "endpoint": "ux61jghq0twkgq",
+  "size": "1024x1024",
+  "steps": 28,
+  "runs": [
+    {
+      "label": "first_request",
+      "runs": 1,
+      "completed": 1,
+      "delay_s_mean": 0.02,
+      "exec_s_mean": 30.16,
+      "exec_s_min": 30.16,
+      "exec_s_max": 30.16,
+      "wall_s_mean": 32.31,
+      "cost_per_image_usd": 0.01022,
+      "images_per_usd": 97
+    },
+    {
+      "label": "warm_sequential_x5",
+      "runs": 5,
+      "completed": 5,
+      "delay_s_mean": 0.69,
+      "exec_s_mean": 30.32,
+      "exec_s_min": 30.22,
+      "exec_s_max": 30.36,
+      "wall_s_mean": 33.1,
+      "exec_s_stdev": 0.06,
+      "cost_per_image_usd": 0.01028,
+      "images_per_usd": 97
+    },
+    {
+      "label": "concurrent_x2",
+      "runs": 2,
+      "completed": 2,
+      "delay_s_mean": 16.42,
+      "exec_s_mean": 30.4,
+      "exec_s_min": 30.39,
+      "exec_s_max": 30.4,
+      "wall_s_mean": 49.91,
+      "exec_s_stdev": 0.0,
+      "cost_per_image_usd": 0.01031,
+      "images_per_usd": 97,
+      "burst_wall_s": 66.55
+    }
+  ]
+}

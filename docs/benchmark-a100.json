@@ -1,0 +1,32 @@
+{
+  "endpoint": "ux61jghq0twkgq",
+  "size": "1024x1024",
+  "steps": 28,
+  "runs": [
+    {
+      "label": "first_request",
+      "runs": 1,
+      "completed": 1,
+      "delay_s_mean": 0.02,
+      "exec_s_mean": 14.01,
+      "exec_s_min": 14.01,
+      "exec_s_max": 14.01,
+      "wall_s_mean": 15.25,
+      "cost_per_image_usd": 0.01059,
+      "images_per_usd": 94
+    },
+    {
+      "label": "warm_sequential_x4",
+      "runs": 4,
+      "completed": 4,
+      "delay_s_mean": 0.8,
+      "exec_s_mean": 14.07,
+      "exec_s_min": 14.01,
+      "exec_s_max": 14.11,
+      "wall_s_mean": 15.99,
+      "exec_s_stdev": 0.04,
+      "cost_per_image_usd": 0.01064,
+      "images_per_usd": 93
+    }
+  ]
+}
