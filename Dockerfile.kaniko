@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1.7
+#
+# Kaniko variant, used to build this image from inside a RunPod CPU pod.
+#
+# Why this file exists instead of just using `Dockerfile`:
+#   RunPod pods run without CAP_SYS_ADMIN on a host with
+#   apparmor_restrict_unprivileged_userns=1, so unshare(CLONE_NEWUSER) is denied.
+#   Buildah and Podman re-exec into a user namespace before they honour
+#   --isolation chroot, so they cannot start at all. Kaniko never uses
+#   namespaces, but it also does not implement BuildKit's
+#   `RUN --mount=type=secret`.
+#
+# Rather than degrade the token to a build arg (which would persist it in the
+# image history), this variant does not authenticate at all: the weights are
+# downloaded to the build context *before* the build by
+# scripts/fetch_weights_local.py, and are simply COPYed in. The HF token stays
+# on the build host and never enters the image, its history, or its layers.
+#
+# The cost is disk: the weights exist twice during the build, once in the
+# context and once in the image filesystem. Size the build host accordingly
+# (~120 GB peak).
+
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/src
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+ARG MODEL_ID=black-forest-labs/FLUX.1-dev
+ENV MODEL_ID=${MODEL_ID} \
+    MODEL_DIR=/models/flux
+
+# Pre-fetched by scripts/fetch_weights_local.py into the build context.
+COPY weights/ /models/flux/
+
+# Weights are local and complete; refuse any runtime call to the Hub.
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    WARMUP=1
+
+COPY src/ /app/src/
+COPY test_input.json /app/test_input.json
+
+CMD ["python", "-u", "/app/src/handler.py"]

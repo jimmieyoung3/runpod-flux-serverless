@@ -11,3 +11,4 @@ submission/*.pdf
 !submission/final/*.pdf
 .DS_Store
 .pytest_cache/
+weights/
