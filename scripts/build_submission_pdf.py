@@ -130,8 +130,8 @@ def build():
             "generated image. The FLUX.1-dev weights are baked into the Docker image, so a worker "
             "loads the model from local disk in <b>7.2 seconds</b> rather than pulling 33.7 GB from "
             "the Hugging Face Hub. Warm generation of a 1024&#215;1024 image at 28 steps takes "
-            "<b>14.1 s on an A100</b> or <b>30.3 s on an A40</b>, at a cost of roughly "
-            "<b>$0.0103 per image</b> on either. Total cost of building, deploying and benchmarking "
+            "<b>14.1 s on an A100</b> or <b>30.3 s on an A40</b>, at a cost of about "
+            "<b>one cent per image</b> on either. Total cost of building, deploying and benchmarking "
             "the whole exercise was <b>$0.85</b>."),
           P("The sections below cover the architecture, the handler and image design, two platform "
             "constraints that materially shaped the build, the measured results, and what I would "
@@ -381,7 +381,7 @@ def build():
                "The handler returns per-request metrics, but nothing aggregates them. Prometheus or a log sink "
                "would make regressions visible."],
               ["Quantised variants for throughput",
-               "fp8 or NF4 transformer weights roughly halve both load time and VRAM, at some quality cost. "
+               "fp8 or NF4 transformer weights roughly halve both load time and VRAM, at some quality cost, "
                "worth measuring against the bf16 baseline recorded here."],
           ], [46 * mm, W - 46 * mm]),
           KeepTogether([
