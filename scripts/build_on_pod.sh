@@ -11,8 +11,15 @@
 #
 # Pod requirements:
 #   - CPU pod, Ubuntu-based image with a shell (e.g. runpod/base:*-cpu)
-#   - >= 150 GB container disk or network volume mounted at /workspace
-#     (vfs storage keeps a full copy per layer, so it needs headroom)
+#   - >= 150 GB container disk. RunPod caps CPU-pod disk at 15 GB per vCPU
+#     (cpu5 flavors), so that means >= 10 vCPU - the vCPU count is really a
+#     disk requirement here, not a compute one.
+#
+# Disk maths: `buildah bud` defaults to --layers=false, so the whole Dockerfile
+# runs in ONE working container and commits once. That means roughly
+# base (8 GB) + weights (34 GB) in the container, plus the committed image
+# (~44 GB) = ~90 GB peak, not the ~170 GB that per-layer vfs copies would cost.
+# Do not add --layers to the bud call below without also raising the disk.
 #
 # Usage, from inside the pod:
 #   export HF_TOKEN=hf_...
