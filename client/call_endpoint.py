@@ -72,9 +72,22 @@ def build_payload(args: argparse.Namespace) -> dict:
 
 
 def run_sync(session: requests.Session, endpoint: str, payload: dict, timeout: int) -> dict:
+    """POST to /runsync, then keep waiting if the job outlives the sync window.
+
+    /runsync does not block indefinitely. When a job takes longer than RunPod's
+    synchronous window it returns the job envelope with status IN_QUEUE or
+    IN_PROGRESS instead of the output, and the caller is expected to poll
+    /status from there. Treating that as a failure loses a job that is about to
+    succeed, which is exactly what it looked like the first time this ran.
+    """
     resp = session.post(f"{BASE}/{endpoint}/runsync", json=payload, timeout=timeout)
     resp.raise_for_status()
-    return resp.json()
+    body = resp.json()
+
+    if body.get("status") in {"IN_QUEUE", "IN_PROGRESS"} and body.get("id"):
+        print(f"still running after the sync window, polling job {body['id']}", flush=True)
+        return poll(session, endpoint, body["id"], timeout)
+    return body
 
 
 def run_async(session: requests.Session, endpoint: str, payload: dict, timeout: int) -> dict:
@@ -82,7 +95,11 @@ def run_async(session: requests.Session, endpoint: str, payload: dict, timeout: 
     resp.raise_for_status()
     job_id = resp.json()["id"]
     print(f"queued job {job_id}", flush=True)
+    return poll(session, endpoint, job_id, timeout)
 
+
+def poll(session: requests.Session, endpoint: str, job_id: str, timeout: int) -> dict:
+    """Poll /status until the job reaches a terminal state, backing off as it waits."""
     deadline = time.time() + timeout
     delay, last_status = 1.0, None
     while time.time() < deadline:
