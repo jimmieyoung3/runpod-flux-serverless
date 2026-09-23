@@ -48,16 +48,21 @@ curl -s -H "Authorization: Bearer $RUNPOD_API_KEY" \
 **Raise the endpoint's execution timeout** so a cold request has room to finish.
 
 **Read `delayTime` and `executionTime` separately.** Every job returns both.
-`delayTime` is queue plus worker start-up. `executionTime` is your handler's own
-time, and it is the number you are billed on. A slow first request with a normal
-`executionTime` is a cold start, not a slow handler.
+`delayTime` is queue plus worker start-up; `executionTime` is your handler's own
+time. A slow first request with a normal `executionTime` is a cold start, not a
+slow handler.
+
+Note that `executionTime` is a job metric, not your bill. Runpod charges for the
+worker's whole lifecycle: start-up including model loading, execution, and the
+idle timeout before it scales down. Cold starts therefore cost you twice, once in
+latency and once on the invoice.
 
 ## Making cold starts shorter
 
 - **Enable FlashBoot** on the endpoint.
-- **Load your model once, at import**, not inside the handler. Runpod attributes
-  import time to worker start-up rather than to billed request time. Loading
-  inside the handler charges every cold request for it, on every worker.
+- **Load your model once, at import**, not inside the handler. Start-up is billed
+  either way, but at import it is paid once per worker instead of once per
+  request.
 - **Add a warm-up pass** at start-up: one cheap, low-step inference so the first
   real request does not absorb CUDA kernel autotuning and lazy initialisation.
 - **Keep the model local to the worker**, either baked into the image or on a

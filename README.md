@@ -35,6 +35,7 @@ client ──── {"input": {prompt}} ─────▶ │ queue ──▶ w
 | `scripts/build_on_pod.sh` | Daemonless build from inside a RunPod CPU pod (Kaniko). |
 | `docs/DEPLOY.md` | Step-by-step RunPod console runbook. |
 | `docs/kb/` | Knowledge base articles written from the failures hit while building this. |
+| `docs/CORRECTIONS.md` | Changes made after the PDF was submitted, and why. |
 
 ## API
 
@@ -141,7 +142,10 @@ rather than a detail.
 | Needs `HF_TOKEN` on the endpoint | no | yes |
 
 The primary image is what the brief asks for and what removes the Hub from the
-critical path. The fallback exists because a 30 GB image is not always buildable
+critical path. Fetching the same weights from the Hub was measured at ~3 minutes on
+RunPod's network, against a 7.2 s load from local disk.
+
+The fallback exists because a 30 GB image is not always buildable
 or pushable, and shipping a smaller image with a warm shared volume is a normal
 production answer at this model size.
 
@@ -193,8 +197,10 @@ pull) plus `from_pretrained`. The trade is a 29.87 GB image and a slow first dep
 `HF_HUB_OFFLINE=1` at runtime enforces that nothing reaches for the network.
 
 **Load at import, not per request.** The pipeline is constructed at module import,
-which RunPod attributes to worker start-up. Loading inside the handler would put a
-~40 s model load inside billed execution time on every cold request.
+so it is paid once per worker rather than once per request. RunPod bills the whole
+worker lifecycle (start-up, execution and idle timeout), so this does not make the
+load free; it makes it amortised. Measured load is 7.2 to 8.0 s, and loading inside
+the handler would repeat it for every request that worker serves.
 
 **A one-step warmup pass.** The first real generation otherwise absorbs CUDA kernel
 autotuning and lazy init. Warming with a throwaway 512px image moves that off the
@@ -218,8 +224,10 @@ belongs at the worker-count level, which is what RunPod autoscaling does.
 
 **Base64 by default, S3 optional.** Base64 keeps the endpoint dependency-free for
 the reviewer. Setting `BUCKET_ENDPOINT_URL` (+ credentials) on the endpoint switches
-to presigned URLs, which is the right choice past RunPod's ~20 MB response ceiling,
-roughly four 1024px PNGs.
+to presigned URLs. RunPod's response ceiling is around 20 MB; four 1024px PNGs from
+this endpoint measure about 7.3 MB once base64-encoded, so the default is safe at
+the schema's maximum of four images. The S3 path matters for larger batches or
+higher resolutions, and is implemented but not exercised.
 
 ## Configuration
 

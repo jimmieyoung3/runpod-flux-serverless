@@ -23,8 +23,8 @@ The endpoint is not failing. Jobs are not erroring. Nothing is moving.
 ## What "throttled" means
 
 Runpod has accepted your endpoint but cannot currently place a worker that
-matches its requirements. Your workers are not running, so **you are not being
-billed** while this lasts.
+matches its requirements. Billing runs from when a worker starts until it fully
+stops, so while nothing has been placed there is nothing to bill.
 
 ## Cause
 
@@ -47,14 +47,16 @@ the more likely constraint. In the case that produced this article, widening
 from 7 GPU tiers to 11, including H100 and H200, made no difference to a 29.87 GB
 image, and the throttle cleared on its own after roughly 10 minutes.
 
-To be clear about confidence: the capacity explanation was ruled out by
-observation. The image-size explanation is the best remaining fit rather than
-something confirmed from the scheduler's side.
+To be clear about confidence: this rests on a single observation with no control.
+Widening the GPU list did not clear the throttle, which makes plain capacity an
+unlikely sole explanation, but the image-size account was not confirmed from the
+scheduler's side and no small-image comparison was run on the same tier list.
+Treat it as the leading hypothesis, not a diagnosis.
 
 ## Resolution
 
-**First, wait.** Throttling is often transient. Workers at zero cost nothing, so
-waiting is free. Give it 10 to 15 minutes before changing anything.
+**First, wait.** Throttling is often transient, and with no worker placed there is
+nothing accruing. Give it 10 to 15 minutes before changing anything.
 
 **Select more GPU types.** A single-tier endpoint can sit unschedulable whenever
 that tier is busy. Pick every tier your model actually fits on, in priority
