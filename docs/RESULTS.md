@@ -18,8 +18,9 @@ and [`benchmark-a100.json`](benchmark-a100.json) (A100).
 
 ## Latency
 
-1024×1024, 28 steps, guidance 3.5. `executionTime` is what RunPod bills;
-`delayTime` is queue plus worker start-up.
+1024×1024, 28 steps, guidance 3.5. `delayTime` is queue plus worker start-up and
+`executionTime` is the handler's own time. Neither is the bill on its own: see
+the cost section below.
 
 | Scenario | delayTime | executionTime | Wall |
 | --- | --- | --- | --- |

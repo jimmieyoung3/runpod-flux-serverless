@@ -70,7 +70,7 @@ weights are baked into the image, 28 denoising steps, image comes back as base64
 
 ```
 "delayTime_ms": 22          <- queue time; near zero because the worker is warm
-"executionTime_ms": 14070   <- what RunPod actually bills
+"executionTime_ms": 14070   <- handler time, not the whole bill
 "cold_start": 7.25          <- seconds to load 33.7 GB from local disk
 ```
 

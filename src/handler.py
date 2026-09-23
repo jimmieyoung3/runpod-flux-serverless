@@ -6,8 +6,10 @@ Import time  : the pipeline is loaded (and optionally warmed) once per worker.
                RunPod treats this as worker start-up / cold start.
 Per request  : validate -> generate -> encode -> return base64 (or an S3 URL).
 
-The module-level load is intentional: doing it inside the handler would charge
-every cold request for a ~40 s model load and would repeat it on each worker.
+The module-level load is intentional. RunPod bills the whole worker lifecycle
+(start-up, execution and idle timeout), so start-up is billed either way; doing
+it here pays the measured 7.2 to 8.0 s once per worker rather than once per
+request.
 """
 
 from __future__ import annotations
@@ -110,16 +112,24 @@ def handler(job: dict) -> dict:
 
     except Exception as exc:  # noqa: BLE001 - surface the traceback to the caller
         log.exception("job=%s failed", job_id)
-        return {
+        # The traceback is useful while developing and is noise, or an
+        # information leak, for an end user. Off unless explicitly enabled.
+        payload = {
             "error": f"{type(exc).__name__}: {exc}",
             "error_type": "inference_error",
-            "traceback": traceback.format_exc(limit=5),
         }
+        if os.environ.get("RETURN_TRACEBACK", "0") == "1":
+            payload["traceback"] = traceback.format_exc(limit=5)
+        return payload
 
 
 def adjust_concurrency(_current: int) -> int:
-    """One in-flight job per worker: generation is GPU-bound and batching two
-    1024px requests onto one card is slower than running them back to back."""
+    """One in-flight job per worker.
+
+    Generation is GPU-bound, so the expectation is that two concurrent 1024px
+    requests would contend rather than overlap usefully. That was not measured
+    here: the concurrency test ran with this modifier in place, so the jobs were
+    serialised by configuration. Throughput comes from more workers."""
     return 1
 
 

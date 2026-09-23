@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Render the case-study submission PDF from the measured results.
 
+FROZEN. This script reproduces the PDF exactly as it was submitted, including
+the billing error described in docs/CORRECTIONS.md. It is deliberately not
+updated, so that the submitted artifact stays reproducible from source. The
+corrected analysis lives in docs/RESULTS.md and docs/CORRECTIONS.md.
+
     .venv/bin/python scripts/build_submission_pdf.py
 
 Everything here is content; the numbers come from docs/RESULTS.md and the

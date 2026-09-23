@@ -218,9 +218,11 @@ the T5-XXL text encoder (~9.5 GB) will not co-reside on a 24 GB card. The worker
 detects this and calls `enable_model_cpu_offload()`: slower per image, but it runs
 instead of OOMing, so the endpoint tolerates a cheaper GPU tier.
 
-**One job per worker.** Generation saturates the GPU; batching two 1024px requests
-onto one card is slower end-to-end than running them back to back. Concurrency
-belongs at the worker-count level, which is what RunPod autoscaling does.
+**One job per worker.** Generation is GPU-bound, so the expectation is that two
+concurrent 1024px requests would contend rather than overlap. That was not
+measured: the concurrency test ran with this modifier already in place, so the
+jobs were serialised by configuration. Concurrency belongs at the worker-count
+level, which is what RunPod autoscaling does.
 
 **Base64 by default, S3 optional.** Base64 keeps the endpoint dependency-free for
 the reviewer. Setting `BUCKET_ENDPOINT_URL` (+ credentials) on the endpoint switches

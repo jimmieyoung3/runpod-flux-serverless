@@ -129,8 +129,10 @@ class FluxPredictor:
         pipe = FluxPipeline.from_pretrained(MODEL_DIR, torch_dtype=torch.bfloat16)
 
         if vram_gb < CPU_OFFLOAD_THRESHOLD_GB:
-            # Sequential module offload: slower per image, but it is the difference
+            # Model-level CPU offload: whole submodules move to the GPU as they are
+            # needed and back afterwards. Slower per image, but the difference
             # between running and OOMing on a 24 GB card such as an A5000 or L4.
+            # Untested: every worker so far has landed on a 48 GB or 80 GB card.
             pipe.enable_model_cpu_offload()
             self.offloaded = True
             log.warning("VRAM below %d GB - enabling model CPU offload", CPU_OFFLOAD_THRESHOLD_GB)
@@ -162,8 +164,9 @@ class FluxPredictor:
         self.load()
         assert self.pipe is not None
 
+        # Schema rejects negative seeds, so None is the only path to a random one.
         seed = params["seed"]
-        if seed is None or seed < 0:
+        if seed is None:
             seed = int(torch.randint(0, 2**31 - 1, (1,)).item())
 
         # The generator must live on CPU when modules are being offloaded, otherwise

@@ -81,7 +81,8 @@ decision, not a default.
 
 Before deploying a large image, decide whether the weights belong inside it.
 Baking them in gives a fast model load, measured at 7.2 seconds from local disk
-against roughly 10 minutes pulling the same weights from Hugging Face. The cost
+against roughly 3 minutes to fetch the same 33.7 GB from Hugging Face on Runpod's
+network. The cost
 is the scheduling friction described above. For a steady endpoint the trade is
 usually worth it. For one that scales from zero frequently, or across several
 regions, a smaller image plus a network volume schedules far more reliably.

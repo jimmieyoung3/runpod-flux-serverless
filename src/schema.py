@@ -14,6 +14,10 @@ MAX_STEPS = 50
 MAX_IMAGES = 4
 MAX_PROMPT_CHARS = 2000
 VALID_FORMATS = {"PNG", "JPEG", "WEBP"}
+VALID_ACTIONS = {"health"}
+# torch.Generator.manual_seed takes a 64-bit value. Anything larger raises at
+# generation time, which would report a client mistake as an inference error.
+MAX_SEED = 2**63 - 1
 
 
 class ValidationError(ValueError):
@@ -45,6 +49,11 @@ def validate(job_input: dict | None, defaults: dict) -> dict:
     """
     if not isinstance(job_input, dict):
         raise ValidationError("'input' must be a JSON object")
+
+    # A misspelled action used to fall through and run a full paid generation.
+    action = job_input.get("action")
+    if action is not None and action not in VALID_ACTIONS:
+        raise ValidationError(f"Unknown action {action!r}. Valid actions: {sorted(VALID_ACTIONS)}")
 
     unknown = set(job_input) - {
         "prompt", "width", "height", "num_inference_steps", "guidance_scale",
@@ -79,6 +88,8 @@ def validate(job_input: dict | None, defaults: dict) -> dict:
     seed = job_input.get("seed")
     if seed is not None:
         seed = _as_int(seed, "seed")
+        if not 0 <= seed <= MAX_SEED:
+            raise ValidationError(f"'seed' must be between 0 and {MAX_SEED}, or omitted for a random seed")
 
     fmt = str(job_input.get("output_format", "PNG")).upper()
     if fmt == "JPG":

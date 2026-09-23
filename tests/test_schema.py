@@ -93,3 +93,30 @@ def test_schnell_defaults_flow_through():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_seed_must_fit_64_bits():
+    # Larger seeds used to pass validation and then fail inside
+    # torch.manual_seed, reporting a client mistake as an inference error.
+    with pytest.raises(ValidationError, match="seed"):
+        validate({"prompt": "p", "seed": 2**70}, DEFAULTS)
+
+
+def test_negative_seed_rejected_not_silently_randomised():
+    with pytest.raises(ValidationError, match="seed"):
+        validate({"prompt": "p", "seed": -1}, DEFAULTS)
+
+
+def test_seed_bounds_accepted():
+    assert validate({"prompt": "p", "seed": 0}, DEFAULTS)["seed"] == 0
+    assert validate({"prompt": "p", "seed": 2**63 - 1}, DEFAULTS)["seed"] == 2**63 - 1
+
+
+def test_unknown_action_rejected():
+    # A typo here used to fall through and run a full paid generation.
+    with pytest.raises(ValidationError, match="helth"):
+        validate({"prompt": "p", "action": "helth"}, DEFAULTS)
+
+
+def test_health_action_still_accepted():
+    assert validate({"prompt": "p", "action": "health"}, DEFAULTS)["prompt"] == "p"

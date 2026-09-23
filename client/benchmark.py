@@ -5,9 +5,15 @@
     python client/benchmark.py --runs 5 --gpu-rate 0.00076   # $/s for the GPU tier
 
 RunPod returns `delayTime` (queue + worker start, ms) and `executionTime`
-(handler wall time, ms) on every job, and bills on executionTime, so the two are
-reported separately: delayTime is the cold-start tax a user feels, executionTime
-is the number on the invoice.
+(handler wall time, ms) on every job. Neither is the bill on its own: RunPod
+charges for the whole worker lifecycle, meaning start-up, execution and the idle
+timeout, from worker start until it fully stops.
+
+So this reports two costs. The steady-state cost charges execution only, which is
+what each image adds under sustained load once start-up is amortised. The
+isolated-request cost adds worker start-up and the endpoint's idle timeout, which
+is what a single request against a scale-to-zero endpoint actually costs. Pass
+--idle-timeout to match your endpoint; the RunPod default is 5 seconds.
 
 Run it once with the endpoint scaled to zero active workers for a true cold
 number, then again immediately for warm numbers.
@@ -37,7 +43,7 @@ def submit(session: requests.Session, endpoint: str, payload: dict, timeout: int
     return body
 
 
-def summarise(label: str, samples: list[dict], gpu_rate: float) -> dict:
+def summarise(label: str, samples: list[dict], gpu_rate: float, idle_timeout: float = 5.0) -> dict:
     ok = [s for s in samples if s.get("status") == "COMPLETED"]
     if not ok:
         return {"label": label, "runs": len(samples), "completed": 0}
@@ -59,9 +65,19 @@ def summarise(label: str, samples: list[dict], gpu_rate: float) -> dict:
     if len(ok) > 1:
         row["exec_s_stdev"] = round(statistics.stdev(exec_), 2)
     if gpu_rate:
-        # RunPod bills execution time per second at the GPU tier's rate.
-        row["cost_per_image_usd"] = round(statistics.mean(exec_) * gpu_rate, 5)
-        row["images_per_usd"] = int(1 / (statistics.mean(exec_) * gpu_rate))
+        mean_exec = statistics.mean(exec_)
+        # Under sustained load the worker is already up, so each image adds only
+        # its execution time.
+        row["cost_per_image_steady_usd"] = round(mean_exec * gpu_rate, 5)
+        row["images_per_usd_steady"] = round(1 / (mean_exec * gpu_rate))
+        # A single request against a scale-to-zero endpoint also pays for the
+        # worker start-up it triggered and the idle timeout before it stops.
+        mean_delay = statistics.mean(delay)
+        isolated = (mean_delay + mean_exec + idle_timeout) * gpu_rate
+        row["cost_per_image_isolated_usd"] = round(isolated, 5)
+        row["isolated_assumes"] = (f"start-up {round(mean_delay, 1)}s "
+                                   f"+ exec {round(mean_exec, 1)}s "
+                                   f"+ idle {idle_timeout}s")
     return row
 
 
@@ -72,7 +88,9 @@ def main() -> int:
     p.add_argument("--size", default="1024x1024")
     p.add_argument("--steps", type=int, default=28)
     p.add_argument("--gpu-rate", type=float, default=0.0,
-                   help="GPU $/second from the RunPod pricing page (e.g. 0.00076 for A100 80GB)")
+                   help="GPU $/second from the RunPod pricing page (e.g. 0.000756 for A100 80GB)")
+    p.add_argument("--idle-timeout", type=float, default=5.0,
+                   help="the endpoint's idle timeout in seconds, used for the isolated-request cost (default 5, RunPod's default)")
     p.add_argument("--timeout", type=int, default=900)
     p.add_argument("--out", default="benchmark-results.json")
     args = p.parse_args()
@@ -99,7 +117,7 @@ def main() -> int:
 
     print(f"first request (cold if no worker is running)...", flush=True)
     first = submit(session, endpoint, payload(0), args.timeout)
-    report["runs"].append(summarise("first_request", [first], args.gpu_rate))
+    report["runs"].append(summarise("first_request", [first], args.gpu_rate, args.idle_timeout))
     print(json.dumps(report["runs"][-1], indent=2), flush=True)
 
     warm = []
@@ -107,7 +125,7 @@ def main() -> int:
         print(f"warm request {i}/{args.runs}...", flush=True)
         warm.append(submit(session, endpoint, payload(i), args.timeout))
     if warm:
-        report["runs"].append(summarise(f"warm_sequential_x{len(warm)}", warm, args.gpu_rate))
+        report["runs"].append(summarise(f"warm_sequential_x{len(warm)}", warm, args.gpu_rate, args.idle_timeout))
         print(json.dumps(report["runs"][-1], indent=2), flush=True)
 
     if args.concurrency:
@@ -118,7 +136,7 @@ def main() -> int:
                 lambda i: submit(session, endpoint, payload(100 + i), args.timeout),
                 range(args.concurrency),
             ))
-        row = summarise(f"concurrent_x{args.concurrency}", burst, args.gpu_rate)
+        row = summarise(f"concurrent_x{args.concurrency}", burst, args.gpu_rate, args.idle_timeout)
         row["burst_wall_s"] = round(time.perf_counter() - started, 2)
         report["runs"].append(row)
         print(json.dumps(row, indent=2), flush=True)

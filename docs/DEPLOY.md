@@ -100,8 +100,9 @@ python client/benchmark.py --runs 5 --gpu-rate <$/second for your GPU tier>
 
 For a true cold-start number: set **Idle timeout** low, wait for the worker count
 to fall to zero on the endpoint's Workers tab, then run the benchmark. The
-`delayTime` field on the first job is the cold-start tax; `executionTime` is what
-RunPod bills.
+`delayTime` field on the first job is the cold-start tax and `executionTime` is
+the handler's own time. RunPod bills the whole worker lifecycle, start-up plus
+execution plus idle timeout, so neither field is the invoice on its own.
 
 ## Troubleshooting
 
@@ -119,4 +120,5 @@ RunPod bills.
 A ~30 GB image means a worker host must cache it before starting, which is a
 smaller pool than "any host with a free GPU". The first request here sat in
 `throttled` for about 10 minutes; widening from 7 to 11 GPU tiers did not help.
-It cleared on its own. Workers at zero are not billed while this happens.
+It cleared on its own. Billing runs from worker start to worker stop, so with
+nothing placed there is nothing accruing.
