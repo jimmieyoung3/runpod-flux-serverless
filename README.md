@@ -125,9 +125,11 @@ export RUNPOD_API_KEY=... RUNPOD_ENDPOINT_ID=...
 python client/ui.py          # http://127.0.0.1:7860
 ```
 
-<!-- TODO: save the screenshot as docs/assets/ui.png, then uncomment:
 ![Browser UI](docs/assets/ui.png)
--->
+
+Output from a run through the UI against the deployed endpoint (FLUX.1-dev, 1024², seed 186449341):
+
+<img src="docs/assets/ui-sample-186449341.png" alt="Sample output generated through the browser UI" width="400">
 
 Or with plain curl:
 
