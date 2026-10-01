@@ -127,10 +127,6 @@ python client/ui.py          # http://127.0.0.1:7860
 
 ![Browser UI](docs/assets/ui.png)
 
-Output from a run through the UI against the deployed endpoint (FLUX.1-dev, 1024², seed 186449341):
-
-<img src="docs/assets/ui-sample-186449341.png" alt="Sample output generated through the browser UI" width="400">
-
 Or with plain curl:
 
 ```bash
