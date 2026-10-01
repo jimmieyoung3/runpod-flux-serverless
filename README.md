@@ -28,6 +28,7 @@ client ──── {"input": {prompt}} ─────▶ │ queue ──▶ w
 | `Dockerfile.kaniko` | **The image that was actually built and deployed.** Weights pre-fetched, no secret. |
 | `Dockerfile.volume` | Fallback image (~9 GB): weights fetched to a network volume on first boot. |
 | `client/call_endpoint.py` | CLI to call the endpoint and save images (`/runsync` or `/run`+poll). |
+| `client/ui.py` | Browser UI (Gradio) over the same `/runsync` call. API key stays server-side. |
 | `client/benchmark.py` | Cold start, warm latency, concurrency and $/image measurements. |
 | `tests/test_schema.py` | 25 unit tests for input handling. |
 | `scripts/build_and_push.sh` | Local build + push. |
@@ -110,6 +111,23 @@ python client/call_endpoint.py "a red fox in a snowy forest at dawn" --seed 7
 python client/call_endpoint.py --health          # model + GPU report, no generation
 python client/benchmark.py --runs 5 --gpu-rate 0.000339   # A40 $/s; A100 is 0.000756
 ```
+
+### Browser UI
+
+A Gradio front end over the same `/runsync` call, with the request fields, a
+health check, and the seed, queue/execution times and handler metrics shown next
+to the image. The API key is read from the environment by the local server and is
+never sent to the browser.
+
+```bash
+pip install -r client/requirements-ui.txt
+export RUNPOD_API_KEY=... RUNPOD_ENDPOINT_ID=...
+python client/ui.py          # http://127.0.0.1:7860
+```
+
+<!-- TODO: save the screenshot as docs/assets/ui.png, then uncomment:
+![Browser UI](docs/assets/ui.png)
+-->
 
 Or with plain curl:
 

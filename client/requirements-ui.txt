@@ -1,0 +1,6 @@
+# Dependencies for the browser UI (client/ui.py). Kept out of requirements.txt,
+# which is installed into the worker image.
+
+gradio==6.29.0
+Pillow==11.0.0
+requests>=2.31
